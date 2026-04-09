@@ -520,68 +520,66 @@ function setIndicator(state){
     else{lbl.innerText='—';}
 }
 
-// 手勢狀態防抖
-let gestureState='none'; // 'none'|'open'|'fist'
-let stateCount=0;
-const STATE_CONFIRM=2; // 連續N幀才確認
+// 手勢狀態
+// 邏輯：張手 → 開始循環；在張手狀態下變成非張手（握拳）→ 抽牌
+let wasOpen=false;       // 上一幀是否為張手
+let openFrames=0;        // 連續張手幀數
+let nonOpenFrames=0;     // 張手後連續非張手幀數
+const OPEN_CONFIRM=2;    // 需要連續幾幀才算張手
+const CLOSE_CONFIRM=2;   // 張手後需要幾幀非張手才觸發抽牌
 
 function onHandResults(results){
     if(!results.multiHandLandmarks||!results.multiHandLandmarks.length){
-        // 沒偵測到手 → 停止輸送帶
-        if(gestureState!=='none'){gestureState='none';stateCount=0;setStreamSpeed(0);setIndicator('none');}
+        // 手離開畫面：重置狀態，停止循環
+        openFrames=0;nonOpenFrames=0;wasOpen=false;
+        setStreamSpeed(0);setIndicator('none');
         return;
     }
     const lm=results.multiHandLandmarks[0];
+    const open=isOpenHand(lm);
 
-    let detected='none';
-    if(isOpenHand(lm)) detected='open';
-    else if(isFist(lm)) detected='fist';
-
-    if(detected===gestureState){
-        stateCount=Math.min(stateCount+1,STATE_CONFIRM+5);
-    } else {
-        gestureState=detected;stateCount=1;
-    }
-
-    if(stateCount<STATE_CONFIRM)return; // 未確認，忽略
-
-    setIndicator(detected);
-
-    if(detected==='open'){
-        // 張手 → 快速循環
-        if(!streamRunning||streamLoops[0]?.timeScale()!==3){
+    if(open){
+        openFrames++;nonOpenFrames=0;
+        if(openFrames>=OPEN_CONFIRM){
+            wasOpen=true;
+            // 張手 → 快速循環
             setStreamSpeed(3);
-            document.getElementById('g-status').innerText='張手：快速循環 中';
+            setIndicator('open');
+            document.getElementById('g-status').innerText='張手中：循環中...';
         }
-    } else if(detected==='fist'){
-        // 握拳 → 停下來 + 抽牌
-        if(streamRunning)setStreamSpeed(0);
-
-        const now=Date.now();
-        if(now-lastDrawTime<DRAW_CD)return;
-        lastDrawTime=now;
-
-        const avail=deckObjs.filter(o=>!o.isPicked);
-        if(!avail.length||pickedCount>=3)return;
-
-        // 抽最靠近畫面中央的牌
-        const cx=window.innerWidth/2;
-        avail.sort((a,b)=>{
-            const ra=a.el.getBoundingClientRect(),rb=b.el.getBoundingClientRect();
-            return Math.abs(ra.left+ra.width/2-cx)-Math.abs(rb.left+rb.width/2-cx);
-        });
-
-        doFlash();haptic([30,60,30]);
-        captureCard(avail[0]);
-        document.getElementById('g-status').innerText=`握拳：抽牌 ${pickedCount}/3`;
-        setTimeout(()=>{
-            if(pickedCount<3) document.getElementById('g-status').innerText='張手循環 · 握拳抽牌';
-        },1500);
     } else {
-        // 自然狀態 → 停止
-        if(streamRunning){
+        nonOpenFrames++;openFrames=0;
+        setIndicator('none');
+
+        if(wasOpen && nonOpenFrames>=CLOSE_CONFIRM){
+            // 從張手變成非張手 → 抽牌！
+            wasOpen=false;nonOpenFrames=0;
             setStreamSpeed(0);
-            document.getElementById('g-status').innerText='張手循環 · 握拳抽牌';
+
+            const now=Date.now();
+            if(now-lastDrawTime<DRAW_CD)return;
+            lastDrawTime=now;
+
+            const avail=deckObjs.filter(o=>!o.isPicked);
+            if(!avail.length||pickedCount>=3)return;
+
+            // 抽最靠近畫面中央的牌
+            const cx=window.innerWidth/2;
+            avail.sort((a,b)=>{
+                const ra=a.el.getBoundingClientRect(),rb=b.el.getBoundingClientRect();
+                return Math.abs(ra.left+ra.width/2-cx)-Math.abs(rb.left+rb.width/2-cx);
+            });
+
+            doFlash();haptic([30,60,30]);
+            captureCard(avail[0]);
+            document.getElementById('g-status').innerText=`✦ 抽牌！${pickedCount}/3`;
+            setTimeout(()=>{
+                if(pickedCount<3) document.getElementById('g-status').innerText='張手循環 · 收手抽牌';
+            },1500);
+        } else if(!wasOpen){
+            // 本來就沒張手 → 停止
+            setStreamSpeed(0);
+            document.getElementById('g-status').innerText='張手循環 · 收手抽牌';
         }
     }
 }
