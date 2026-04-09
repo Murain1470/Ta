@@ -491,14 +491,18 @@ function isOpenHand(lm){
     return ext>=3&&thumbOut;
 }
 
-// ── 握拳：四指指尖都低於MCP ──
+// ── 握拳：指尖低於PIP關節（比MCP更寬鬆）──
 function isFist(lm){
-    const tips=[8,12,16,20],mcps=[5,9,13,17];
+    // 用 PIP 關節（第二關節）判斷，比 MCP 更容易偵測到彎曲
+    // 食指8>6, 中指12>10, 無名16>14, 小指20>18
+    const tips=[8,12,16,20],pips=[6,10,14,18];
     let curled=0;
-    for(let i=0;i<4;i++) if(lm[tips[i]].y > lm[mcps[i]].y) curled++;
-    // 拇指也收回
-    const thumbIn=Math.abs(lm[4].x-lm[0].x)<0.1;
-    return curled>=3&&thumbIn;
+    for(let i=0;i<4;i++){
+        // 指尖 y > PIP y = 彎曲（y越大越低）
+        if(lm[tips[i]].y > lm[pips[i]].y - 0.01) curled++;
+    }
+    // 3指彎曲就算握拳（不強制要求拇指）
+    return curled>=3;
 }
 
 function doFlash(){
@@ -519,7 +523,7 @@ function setIndicator(state){
 // 手勢狀態防抖
 let gestureState='none'; // 'none'|'open'|'fist'
 let stateCount=0;
-const STATE_CONFIRM=3; // 連續N幀才確認
+const STATE_CONFIRM=2; // 連續N幀才確認
 
 function onHandResults(results){
     if(!results.multiHandLandmarks||!results.multiHandLandmarks.length){
