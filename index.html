@@ -12,7 +12,6 @@
 :root{--bg:#04030a;--gold:#c5a059;--gold2:#f0d080;--cw:76px;--ch:128px;--glass:rgba(6,4,16,0.97)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff;font-family:'Cormorant Garamond',serif;user-select:none}
-
 #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
 
 /* ══ 儀式畫面 ══ */
@@ -52,41 +51,27 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff
     font-size:0.58rem;letter-spacing:9px;color:rgba(197,160,89,0.35);
     text-transform:uppercase;z-index:20;pointer-events:none}
 
-/* 槽位（下方，跟原版一致） */
+/* 輸送帶（上方 32%）*/
+#stream-wrap{position:absolute;top:32%;left:0;width:100%;height:var(--ch);
+    z-index:20;transform:translateY(-50%);overflow:visible}
+#stream{position:relative;width:100%;height:100%}
+
+/* 槽位（下方 72%，跟原版一致）*/
 #slots{position:absolute;top:72%;left:0;right:0;
     display:flex;justify-content:center;align-items:center;gap:18px;
     z-index:30;pointer-events:none;transform:translateY(-50%)}
-.slot{width:var(--cw);height:var(--ch);border-radius:9px;border:1px dashed rgba(197,160,89,0.1);
-    display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-    padding-bottom:7px;transition:border-color 0.4s,background 0.4s,box-shadow 0.4s}
+.slot{width:var(--cw);height:var(--ch);border-radius:9px;
+    border:1px dashed rgba(197,160,89,0.1);display:flex;flex-direction:column;
+    align-items:center;justify-content:flex-end;padding-bottom:7px;
+    transition:border-color 0.4s,background 0.4s,box-shadow 0.4s}
 .slot.ready{border-color:rgba(197,160,89,0.5);background:rgba(197,160,89,0.05);
     box-shadow:0 0 20px rgba(197,160,89,0.1) inset}
 .slot-lbl{font-size:0.38rem;letter-spacing:3px;color:rgba(197,160,89,0.2);text-transform:uppercase}
-#pick-count{position:absolute;top:56%;left:50%;transform:translateX(-50%);
-    font-family:'Cinzel',serif;font-size:0.5rem;letter-spacing:5px;
-    color:rgba(197,160,89,0.3);text-transform:uppercase;z-index:20;pointer-events:none}
 
-/* ── 輸送帶模式（預設）── */
-#stream-wrap{position:absolute;top:32%;left:0;width:100%;height:var(--ch);
-    z-index:20;transform:translateY(-50%);touch-action:none;overflow:visible}
-#stream{position:relative;width:100%;height:100%}
-
-/* ── 扇形模式 ── */
-#fan-wrap{position:absolute;top:0;left:0;right:0;height:60%;z-index:20;
-    display:none;align-items:center;justify-content:center;overflow:hidden}
-#fan{position:relative;width:100%;height:100%;touch-action:none}
-
-/* 模式切換提示 */
-#mode-hint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
-    font-size:0.48rem;letter-spacing:4px;color:rgba(197,160,89,0.25);
-    text-transform:uppercase;z-index:5;pointer-events:none;animation:blink 2.5s infinite;
-    text-align:center;white-space:nowrap}
-@keyframes blink{0%,100%{opacity:0.3}50%{opacity:0.8}}
-
-/* ── 牌片共用 ── */
+/* 牌片 */
 .card{position:absolute;width:var(--cw);height:var(--ch);
-    transform-style:preserve-3d;cursor:pointer;will-change:transform;touch-action:manipulation}
-.card.dragging{cursor:grabbing;z-index:999!important}
+    transform-style:preserve-3d;cursor:pointer;touch-action:manipulation}
+.card.captured{position:fixed!important;z-index:400!important;cursor:pointer;touch-action:manipulation}
 .c-back,.c-front{position:absolute;inset:0;border-radius:8px;backface-visibility:hidden}
 .c-back{background:#07050f;border:1px solid rgba(197,160,89,0.55);
     display:flex;align-items:center;justify-content:center}
@@ -94,12 +79,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff
 .c-front{background:#000;transform:rotateY(180deg);overflow:hidden;border:1.5px solid var(--gold)}
 .c-front img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.5s}
 .c-front img.ok{opacity:1}
-.card.captured{position:fixed!important;z-index:400!important;cursor:pointer;touch-action:manipulation}
 
-/* 拖曳光暈 */
-.drag-glow{position:fixed;width:100px;height:160px;border-radius:12px;pointer-events:none;z-index:998;
-    background:radial-gradient(ellipse,rgba(197,160,89,0.18) 0%,transparent 70%);
-    transform:translate(-50%,-50%);opacity:0;transition:opacity 0.2s}
+/* 粒子 / 重啟 */
 .pt{position:fixed;width:3px;height:3px;border-radius:50%;pointer-events:none;z-index:997;background:var(--gold2)}
 #restart{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
     background:none;border:1px solid rgba(197,160,89,0.2);color:var(--gold);
@@ -136,18 +117,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff
 #gesture-btn{position:fixed;top:16px;right:16px;z-index:700;width:44px;height:44px;
     border-radius:50%;border:1px solid rgba(197,160,89,0.3);background:rgba(6,4,16,0.85);
     display:none;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation}
-#gesture-btn.active{border-color:rgba(197,160,89,0.8);box-shadow:0 0 12px rgba(197,160,89,0.4)}
-#gesture-btn svg{width:22px;height:22px;opacity:0.6;transition:opacity 0.3s}
+#gesture-btn.active{border-color:var(--gold);box-shadow:0 0 14px rgba(197,160,89,0.4)}
+#gesture-btn svg{width:22px;height:22px;opacity:0.55}
 #gesture-btn.active svg{opacity:1}
-#gesture-status{position:fixed;top:16px;right:68px;z-index:700;font-family:'Cinzel',serif;
-    font-size:0.42rem;letter-spacing:2px;color:rgba(197,160,89,0.6);display:none;
-    align-items:center;background:rgba(6,4,16,0.8);padding:6px 12px;border-radius:12px;
-    border:1px solid rgba(197,160,89,0.15);white-space:nowrap}
-#gesture-status.show{display:flex}
-#gesture-flash{position:fixed;inset:0;z-index:690;pointer-events:none;
-    background:radial-gradient(ellipse at 50% 50%,rgba(197,160,89,0.2) 0%,transparent 65%);
-    opacity:0;transition:opacity 0.12s}
-#gesture-flash.on{opacity:1}
+#g-status{position:fixed;top:16px;right:68px;z-index:700;font-family:'Cinzel',serif;
+    font-size:0.4rem;letter-spacing:2px;color:rgba(197,160,89,0.6);display:none;
+    align-items:center;background:rgba(6,4,16,0.85);padding:6px 12px;border-radius:12px;
+    border:1px solid rgba(197,160,89,0.15);white-space:nowrap;max-width:200px}
+#g-status.show{display:flex}
+
+/* 手勢狀態指示燈 */
+#g-indicator{position:fixed;top:68px;right:16px;z-index:700;width:44px;
+    display:none;flex-direction:column;align-items:center;gap:4px}
+#g-indicator.show{display:flex}
+.g-dot{width:8px;height:8px;border-radius:50%;background:rgba(197,160,89,0.2);transition:all 0.15s}
+.g-dot.open{background:#f0d080;box-shadow:0 0 8px #f0d080}
+.g-dot.fist{background:#ff6b6b;box-shadow:0 0 8px #ff6b6b}
+.g-label{font-size:0.35rem;color:rgba(197,160,89,0.4);letter-spacing:1px;text-align:center}
+
+/* 閃光 */
+#g-flash{position:fixed;inset:0;z-index:690;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 50%,rgba(197,160,89,0.18) 0%,transparent 65%);
+    opacity:0;transition:opacity 0.1s}
+#g-flash.on{opacity:1}
 #mp-video{position:fixed;top:-9999px;left:-9999px;width:1px;height:1px}
 </style>
 </head>
@@ -179,19 +171,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff
 <!-- 主場景 -->
 <div id="scene">
     <div id="hdr">Celestial Oracle · Draw Three</div>
+    <div id="stream-wrap"><div id="stream"></div></div>
     <div id="slots">
         <div class="slot" id="slot-0"><div class="slot-lbl">Past</div></div>
         <div class="slot" id="slot-1"><div class="slot-lbl">Present</div></div>
         <div class="slot" id="slot-2"><div class="slot-lbl">Future</div></div>
     </div>
-    <div id="pick-count">選取 0 / 3</div>
-    <!-- 輸送帶 -->
-    <div id="stream-wrap"><div id="stream"></div></div>
-    <!-- 扇形 -->
-    <div id="fan-wrap"><div id="fan"></div></div>
-    <div id="mode-hint">點擊牌片選牌</div>
 </div>
 
+<!-- 面板 -->
 <div id="panel">
     <div id="pscroll">
         <div class="p-lbl" id="p-lbl">POSITION</div>
@@ -202,7 +190,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff
     <button class="p-btn" id="p-btn">下一步</button>
 </div>
 <button id="restart" onclick="location.reload()">重新占卜</button>
-<div class="drag-glow" id="drag-glow"></div>
 
 <!-- 手勢 -->
 <video id="mp-video" playsinline></video>
@@ -212,8 +199,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:#fff
         <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34L3 16"/>
     </svg>
 </button>
-<div id="gesture-status">偵測中...</div>
-<div id="gesture-flash"></div>
+<div id="g-status">偵測中...</div>
+<div id="g-indicator">
+    <div class="g-dot" id="g-dot"></div>
+    <div class="g-label" id="g-label">—</div>
+</div>
+<div id="g-flash"></div>
 
 <script>
 // ══ 星空 ══
@@ -242,10 +233,10 @@ let userIntent="",pickedCount=0,pickedSeq=[],nextReveal=0;
 let deckObjs=[];
 const CW=76,CH=128;
 
-// 模式：'stream'=輸送帶, 'fan'=扇形
-let currentMode='stream';
-let streamObjs=[]; // 輸送帶牌物件
-let fanObjs=[];    // 扇形牌物件
+// 輸送帶控制
+let streamLoops=[];      // 每張牌的 gsap loop
+let streamSpeed=1;       // 速度倍率（手勢控制）
+let streamRunning=false; // 是否在跑
 
 function haptic(p){window.navigator?.vibrate?.(p)}
 
@@ -288,26 +279,22 @@ function startScene(){
     gsap.to('#ritual',{opacity:0,duration:0.7,onComplete:()=>{
         document.getElementById('ritual').style.display='none';
         document.getElementById('scene').style.display='block';
-        buildStream(); // 預設輸送帶模式
-        setTimeout(()=>{document.getElementById('gesture-btn').style.display='flex';},800);
+        buildStream();
+        setTimeout(()=>{
+            document.getElementById('gesture-btn').style.display='flex';
+        },800);
     }});
 }
 
-// ══════════════════════════════════════════
-// 輸送帶模式
-// ══════════════════════════════════════════
+// ══ 建立輸送帶 ══
 function buildStream(){
-    currentMode='stream';
-    document.getElementById('stream-wrap').style.display='block';
-    document.getElementById('fan-wrap').style.display='none';
-    document.getElementById('mode-hint').innerText='點擊牌片選牌';
-
     const stream=document.getElementById('stream');
     stream.innerHTML='';
-    streamObjs=[];
+    deckObjs=[];streamLoops=[];
 
     const spacing=110,totalW=78*spacing,screenMid=window.innerWidth/2;
     const shuffled=[...cardData].sort(()=>Math.random()-0.5);
+    const BASE_DUR=5; // 秒，越小越快
 
     for(let i=0;i<78;i++){
         const el=document.createElement('div');
@@ -321,137 +308,62 @@ function buildStream(){
         gsap.to(el,{opacity:1,duration:0.6,delay:i*0.005});
 
         const obj={el,data:shuffled[i],isRev,isPicked:false,startX};
-        streamObjs.push(obj);
-        deckObjs=streamObjs; // 共用引用
+        deckObjs.push(obj);
 
-        obj.loop=gsap.to(el,{x:`-=${totalW}`,duration:5,ease:"none",repeat:-1,modifiers:{
-            x:gsap.utils.unitize(x=>{
-                const cx2=((parseFloat(x)+400)%totalW+totalW)%totalW-400;
-                const dist=Math.abs(cx2-screenMid+38);
-                el.style.filter=dist<70?`brightness(1.8) drop-shadow(0 0 12px var(--gold))`:`brightness(1)`;
-                return cx2;
-            }),
-            y:()=>Math.sin(Date.now()*0.008+startX)*10
-        }});
-        el.addEventListener('click',()=>{if(pickedCount<3&&!obj.isPicked)captureCard(obj);});
+        const loop=gsap.to(el,{
+            x:`-=${totalW}`,duration:BASE_DUR,ease:"none",repeat:-1,
+            modifiers:{
+                x:gsap.utils.unitize(x=>{
+                    const cx=((parseFloat(x)+400)%totalW+totalW)%totalW-400;
+                    const dist=Math.abs(cx-screenMid+38);
+                    el.style.filter=dist<70?`brightness(1.8) drop-shadow(0 0 12px var(--gold))`:`brightness(1)`;
+                    return cx;
+                }),
+                y:()=>Math.sin(Date.now()*0.008+startX)*10
+            }
+        });
+        streamLoops.push(loop);
+        streamRunning=true;
+
+        // 直接點牌抽牌（非手勢模式）
+        el.addEventListener('click',()=>{
+            if(gestureEnabled)return; // 手勢模式不用點
+            if(pickedCount<3&&!obj.isPicked)captureCard(obj);
+        });
     }
 }
 
-// ══════════════════════════════════════════
-// 扇形模式（手勢張手後切換）
-// ══════════════════════════════════════════
-function switchToFan(){
-    if(currentMode==='fan')return;
-
-    // 暫停輸送帶
-    streamObjs.forEach(o=>{
-        if(!o.isPicked&&o.loop){o.loop.pause();gsap.to(o.el,{opacity:0,duration:0.4});}
-    });
-
-    currentMode='fan';
-    document.getElementById('stream-wrap').style.display='none';
-    document.getElementById('fan-wrap').style.display='flex';
-    document.getElementById('mode-hint').innerText='☝ 一指上滑抽牌 · 張手切回循環';
-
-    buildFan();
-}
-
-function switchToStream(){
-    if(currentMode==='stream')return;
-
-    // 清空扇形
-    const fan=document.getElementById('fan');
-    fanObjs.forEach(o=>{if(!o.isPicked)gsap.to(o.el,{opacity:0,duration:0.3,onComplete:()=>o.el.remove()});});
-    fanObjs=[];
-
-    currentMode='stream';
-    document.getElementById('fan-wrap').style.display='none';
-    document.getElementById('stream-wrap').style.display='block';
-    document.getElementById('mode-hint').innerText='點擊牌片選牌';
-
-    // 重啟輸送帶
-    streamObjs.forEach(o=>{
-        if(!o.isPicked&&o.loop){
-            gsap.to(o.el,{opacity:1,duration:0.5});
-            o.loop.resume();
+// ══ 輸送帶速度控制 ══
+function setStreamSpeed(speed){
+    // speed: 1=正常, 3=快速（張手）, 0=停止
+    streamLoops.forEach(loop=>{
+        if(speed===0){
+            loop.timeScale(1);
+            loop.pause();
+        } else {
+            if(loop.paused())loop.resume();
+            loop.timeScale(speed);
         }
     });
+    streamRunning=speed>0;
 }
 
-function buildFan(){
-    const fan=document.getElementById('fan');
-    fan.innerHTML='';
-    fanObjs=[];
-
-    const N=78,cx=window.innerWidth/2;
-    const SPACING=38;
-    const shuffled=[...cardData].sort(()=>Math.random()-0.5);
-
-    for(let i=0;i<N;i++){
-        const el=document.createElement('div');
-        el.className='card';
-        const isRev=Math.random()>0.72;
-        el.innerHTML=`<div class="c-back"><svg viewBox="0 0 100 100" fill="none" stroke="#c5a059" stroke-width="0.8"><circle cx="50" cy="50" r="44"/><path d="M50 6L50 94M6 50L94 50"/><polygon points="50,26 66,50 50,74 34,50"/></svg></div><div class="c-front"><img src="${shuffled[i].img}" onload="this.classList.add('ok')"></div>`;
-        const angle=((i-(N-1)/2)*SPACING/400)*0.8;
-        const radius=window.innerHeight*0.5;
-        // 圓心在畫面高度 55% 處，扇形展開在上半部
-        const fanCY=window.innerHeight*0.55;
-        const baseX=cx+Math.sin(angle)*radius-CW/2;
-        const baseY=fanCY-radius*Math.cos(angle)+radius*0.6;
-        el.style.cssText=`left:${baseX}px;top:${baseY}px;z-index:${i};transform:rotate(${angle*57.3}deg)`;
-        if(isRev)el.querySelector('.c-front img').style.transform='rotate(180deg)';
-        fan.appendChild(el);
-        gsap.from(el,{y:60,opacity:0,duration:0.5,delay:i*0.003,ease:"power2.out"});
-
-        const obj={el,data:shuffled[i],isRev,isPicked:false,angle,baseX,baseY,idx:i};
-        fanObjs.push(obj);
-
-        // 觸控拖牌
-        el.addEventListener('click',()=>{if(pickedCount<3&&!obj.isPicked)captureCard(obj);});
-    }
-
-    // 撥動牌堆
-    initFanSwipe();
-}
-
-let fanOffset=0;
-function initFanSwipe(){
-    const fan=document.getElementById('fan');
-    let startX=0,lastX=0,vel=0,raf=null,touching=false;
-    fan.addEventListener('touchstart',e=>{
-        touching=true;startX=e.touches[0].clientX;lastX=startX;vel=0;
-        cancelAnimationFrame(raf);
-    },{passive:true});
-    fan.addEventListener('touchmove',e=>{
-        if(!touching)return;
-        const dx=e.touches[0].clientX-lastX;vel=dx;lastX=e.touches[0].clientX;
-        fanOffset+=dx;
-        fanObjs.forEach(o=>{if(!o.isPicked)gsap.set(o.el,{x:fanOffset});});
-    },{passive:true});
-    fan.addEventListener('touchend',()=>{
-        touching=false;
-        function inertia(){if(Math.abs(vel)<0.5)return;vel*=0.92;fanOffset+=vel;
-            fanObjs.forEach(o=>{if(!o.isPicked)gsap.set(o.el,{x:fanOffset});});
-            raf=requestAnimationFrame(inertia);}
-        inertia();
-    },{passive:true});
-}
-
-// ══════════════════════════════════════════
-// 抓牌（兩種模式共用）
-// ══════════════════════════════════════════
+// ══ 抓牌 ══
 function captureCard(obj){
     if(obj.isPicked||pickedCount>=3)return;
     obj.isPicked=true;haptic(40);
-    if(obj.loop)obj.loop.pause();
 
     const myIdx=pickedCount;
     pickedCount++;
-    document.getElementById('pick-count').innerText=`選取 ${pickedCount} / 3`;
 
     const slot=document.getElementById(`slot-${myIdx}`);
     const sr=slot.getBoundingClientRect();
     const or=obj.el.getBoundingClientRect();
+
+    // 暫停這張牌的loop
+    if(streamLoops[deckObjs.indexOf(obj)]){
+        streamLoops[deckObjs.indexOf(obj)].pause();
+    }
 
     const clone=obj.el.cloneNode(true);
     clone.className='card captured';
@@ -459,7 +371,7 @@ function captureCard(obj){
     document.body.appendChild(clone);
     if(obj.isRev)clone.querySelector('.c-front img').style.transform='rotate(180deg)';
 
-    gsap.to(obj.el,{opacity:0,scale:0.85,duration:0.4});
+    gsap.to(obj.el,{opacity:0.15,duration:0.4});
     obj.el.style.pointerEvents='none';
 
     for(let i=0;i<12;i++)spawnPt(or.left+CW/2,or.top+CH/2);
@@ -469,17 +381,17 @@ function captureCard(obj){
 
     gsap.timeline()
         .to(clone,{scale:1.3,y:-30,duration:0.3,ease:"power2.out"})
-        .to(clone,{left:sr.left,top:sr.top,scale:1,y:0,duration:0.9,ease:"expo.inOut",
+        .to(clone,{
+            left:sr.left,top:sr.top,scale:1,y:0,
+            duration:0.9,ease:"expo.inOut",
             onUpdate:()=>spawnPt(parseFloat(clone.style.left)+CW/2,parseFloat(clone.style.top)+CH/2,0.3),
             onComplete:()=>{
                 slot.classList.add('ready');
                 clone.addEventListener('click',()=>revealCard(info));
                 if(pickedCount===3){
-                    document.getElementById('mode-hint').style.display='none';
                     gsap.to('#restart',{opacity:1,pointerEvents:'auto',delay:0.8});
-                    // 暗化剩餘
-                    const allObjs=currentMode==='stream'?streamObjs:fanObjs;
-                    allObjs.forEach(o=>{if(!o.isPicked)gsap.to(o.el,{opacity:0.07,duration:1.2});});
+                    deckObjs.forEach(o=>{if(!o.isPicked)gsap.to(o.el,{opacity:0.07,duration:1.2});});
+                    setStreamSpeed(0);
                 }
             }
         });
@@ -489,7 +401,7 @@ function spawnPt(x,y,chance=1){
     if(Math.random()>chance)return;
     const p=document.createElement('div');p.className='pt';document.body.appendChild(p);
     gsap.set(p,{left:x,top:y,opacity:0.8});
-    gsap.to(p,{x:(Math.random()-.5)*60,y:(Math.random()-.5)*60,opacity:0,scale:0,duration:0.7,ease:"power2.out",onComplete:()=>p.remove()});
+    gsap.to(p,{x:(Math.random()-.5)*60,y:(Math.random()-.5)*60,opacity:0,scale:0,duration:0.7,onComplete:()=>p.remove()});
 }
 
 // ══ 翻牌 ══
@@ -499,7 +411,8 @@ function revealCard(obj){
         gsap.to(obj.el.querySelector('.c-back'),{rotationY:90,duration:0.3,onComplete:()=>{
             obj.el.querySelector('.c-back').style.display='none';
             obj.el.querySelector('.c-front').style.transform='none';
-            gsap.from(obj.el.querySelector('.c-front'),{rotationY:-90,duration:0.4,ease:"back.out(1.2)",onComplete:()=>showPanel(obj)});
+            gsap.from(obj.el.querySelector('.c-front'),{rotationY:-90,duration:0.4,ease:"back.out(1.2)",
+                onComplete:()=>showPanel(obj)});
         }});
     } else {
         document.getElementById('panel').classList.remove('on');
@@ -563,116 +476,156 @@ async function callAI(){
 }
 
 // ══════════════════════════════════════════
-// 手勢偵測（MediaPipe）
+// 手勢偵測（MediaPipe Hands）
 // ══════════════════════════════════════════
 let gestureEnabled=false,handsModel=null,mpCamera=null;
-let lastDrawTime=0,lastModeTime=0;
-const DRAW_CD=2000,MODE_CD=2000;
+let lastDrawTime=0;
+const DRAW_CD=2000;
 
-// 食指上滑偵測
-let idxHistory=[];
-const HIST_MS=400,SWIPE_THR=0.16;
-
-// ── 張開手（五指伸直）──
+// ── 張開手：至少4指伸直 ──
 function isOpenHand(lm){
     const tips=[8,12,16,20],pips=[6,10,14,18];
     let ext=0;
-    for(let i=0;i<4;i++) if(lm[tips[i]].y<lm[pips[i]].y-0.03)ext++;
-    const thumb=Math.abs(lm[4].x-lm[0].x)>0.12;
-    return ext>=3&&thumb;
+    for(let i=0;i<4;i++) if(lm[tips[i]].y < lm[pips[i]].y-0.04) ext++;
+    const thumbOut=Math.abs(lm[4].x-lm[0].x)>0.12;
+    return ext>=3&&thumbOut;
 }
 
-// ── 只有食指伸直 ──
-function isOneFinger(lm){
-    return lm[8].y<lm[6].y &&
-           lm[12].y>lm[10].y &&
-           lm[16].y>lm[14].y &&
-           lm[20].y>lm[18].y;
+// ── 握拳：四指指尖都低於MCP ──
+function isFist(lm){
+    const tips=[8,12,16,20],mcps=[5,9,13,17];
+    let curled=0;
+    for(let i=0;i<4;i++) if(lm[tips[i]].y > lm[mcps[i]].y) curled++;
+    // 拇指也收回
+    const thumbIn=Math.abs(lm[4].x-lm[0].x)<0.1;
+    return curled>=3&&thumbIn;
 }
 
-// ── 食指向上快速滑動 ──
-function detectSwipeUp(lm){
-    const now=Date.now();
-    idxHistory.push({y:lm[8].y,t:now});
-    idxHistory=idxHistory.filter(p=>now-p.t<HIST_MS);
-    if(idxHistory.length<4)return false;
-    return idxHistory[0].y-idxHistory[idxHistory.length-1].y>SWIPE_THR;
+function doFlash(){
+    const f=document.getElementById('g-flash');
+    f.classList.add('on');setTimeout(()=>f.classList.remove('on'),200);
 }
 
-function flash(){
-    const f=document.getElementById('gesture-flash');
-    f.classList.add('on');setTimeout(()=>f.classList.remove('on'),250);
+function setIndicator(state){
+    // state: 'open' | 'fist' | 'none'
+    const dot=document.getElementById('g-dot');
+    const lbl=document.getElementById('g-label');
+    dot.className='g-dot';
+    if(state==='open'){dot.classList.add('open');lbl.innerText='張手';}
+    else if(state==='fist'){dot.classList.add('fist');lbl.innerText='握拳';}
+    else{lbl.innerText='—';}
 }
+
+// 手勢狀態防抖
+let gestureState='none'; // 'none'|'open'|'fist'
+let stateCount=0;
+const STATE_CONFIRM=3; // 連續N幀才確認
 
 function onHandResults(results){
-    if(!results.multiHandLandmarks||!results.multiHandLandmarks.length){idxHistory=[];return;}
+    if(!results.multiHandLandmarks||!results.multiHandLandmarks.length){
+        // 沒偵測到手 → 停止輸送帶
+        if(gestureState!=='none'){gestureState='none';stateCount=0;setStreamSpeed(0);setIndicator('none');}
+        return;
+    }
     const lm=results.multiHandLandmarks[0];
-    const now=Date.now();
 
-    if(isOpenHand(lm)){
-        idxHistory=[];
-        if(now-lastModeTime<MODE_CD)return;
-        lastModeTime=now;
-        haptic([20,20]);flash();
-        // 切換模式
-        if(currentMode==='stream'){
-            switchToFan();
-            document.getElementById('gesture-status').innerText='扇形模式 · ☝ 一指上滑抽牌';
-        } else {
-            switchToStream();
-            document.getElementById('gesture-status').innerText='循環模式 · 張手切換扇形';
+    let detected='none';
+    if(isOpenHand(lm)) detected='open';
+    else if(isFist(lm)) detected='fist';
+
+    if(detected===gestureState){
+        stateCount=Math.min(stateCount+1,STATE_CONFIRM+5);
+    } else {
+        gestureState=detected;stateCount=1;
+    }
+
+    if(stateCount<STATE_CONFIRM)return; // 未確認，忽略
+
+    setIndicator(detected);
+
+    if(detected==='open'){
+        // 張手 → 快速循環
+        if(!streamRunning||streamLoops[0]?.timeScale()!==3){
+            setStreamSpeed(3);
+            document.getElementById('g-status').innerText='張手：快速循環 中';
         }
-    } else if(isOneFinger(lm)&&detectSwipeUp(lm)){
-        if(pickedCount>=3)return;
-        if(now-lastDrawTime<DRAW_CD)return;
-        lastDrawTime=now;idxHistory=[];
+    } else if(detected==='fist'){
+        // 握拳 → 停下來 + 抽牌
+        if(streamRunning)setStreamSpeed(0);
 
-        // 找最靠近畫面中央的牌
-        const allObjs=currentMode==='stream'?streamObjs:fanObjs;
+        const now=Date.now();
+        if(now-lastDrawTime<DRAW_CD)return;
+        lastDrawTime=now;
+
+        const avail=deckObjs.filter(o=>!o.isPicked);
+        if(!avail.length||pickedCount>=3)return;
+
+        // 抽最靠近畫面中央的牌
         const cx=window.innerWidth/2;
-        const avail=allObjs.filter(o=>!o.isPicked);
-        if(!avail.length)return;
         avail.sort((a,b)=>{
             const ra=a.el.getBoundingClientRect(),rb=b.el.getBoundingClientRect();
             return Math.abs(ra.left+ra.width/2-cx)-Math.abs(rb.left+rb.width/2-cx);
         });
-        haptic([30,60,30]);flash();
+
+        doFlash();haptic([30,60,30]);
         captureCard(avail[0]);
-        document.getElementById('gesture-status').innerText=`✦ 抽牌！${pickedCount}/3`;
+        document.getElementById('g-status').innerText=`握拳：抽牌 ${pickedCount}/3`;
         setTimeout(()=>{
-            if(pickedCount<3)document.getElementById('gesture-status').innerText=
-                currentMode==='stream'?'循環模式 · 張手切換扇形':'扇形模式 · ☝ 一指上滑抽牌';
+            if(pickedCount<3) document.getElementById('g-status').innerText='張手循環 · 握拳抽牌';
         },1500);
     } else {
-        // 清除歷史
-        if(!isOneFinger(lm))idxHistory=[];
+        // 自然狀態 → 停止
+        if(streamRunning){
+            setStreamSpeed(0);
+            document.getElementById('g-status').innerText='張手循環 · 握拳抽牌';
+        }
     }
 }
 
 async function initGesture(){
     const btn=document.getElementById('gesture-btn');
-    const status=document.getElementById('gesture-status');
+    const status=document.getElementById('g-status');
+    const indicator=document.getElementById('g-indicator');
+
     if(gestureEnabled){
         gestureEnabled=false;
         if(mpCamera){mpCamera.stop();mpCamera=null;}
         if(handsModel){handsModel.close();handsModel=null;}
         const v=document.getElementById('mp-video');
         if(v.srcObject){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;}
-        btn.classList.remove('active');status.classList.remove('show');
+        btn.classList.remove('active');
+        status.classList.remove('show');
+        indicator.classList.remove('show');
+        setStreamSpeed(1); // 恢復正常速度
+        // 恢復點擊抽牌
         return;
     }
+
     status.innerText='請求鏡頭...';status.classList.add('show');
+
     try{
         const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:320,height:240}});
         const v=document.getElementById('mp-video');
         v.srcObject=stream;await v.play();
+
         handsModel=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-        handsModel.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:0.72,minTrackingConfidence:0.6});
+        handsModel.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:0.75,minTrackingConfidence:0.65});
         handsModel.onResults(onHandResults);
-        mpCamera=new Camera(v,{onFrame:async()=>{if(handsModel)await handsModel.send({image:v});},width:320,height:240});
+
+        mpCamera=new Camera(v,{
+            onFrame:async()=>{if(handsModel)await handsModel.send({image:v});},
+            width:320,height:240
+        });
         mpCamera.start();
-        gestureEnabled=true;btn.classList.add('active');
-        status.innerText='循環模式 · 張手切換扇形';
+
+        gestureEnabled=true;
+        btn.classList.add('active');
+        status.innerText='張手循環 · 握拳抽牌';
+        indicator.classList.add('show');
+
+        // 手勢模式下暫停輸送帶，等待張手
+        setStreamSpeed(0);
+
     }catch(err){
         status.innerText=err.name==='NotAllowedError'?'需要鏡頭權限':'鏡頭不支援';
         setTimeout(()=>status.classList.remove('show'),2500);
