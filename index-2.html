@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HoloTarot</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<style>
+:root{
+    --bg:#04030a;--gold:#c5a059;--gold2:#f0d080;
+    --cw:72px;--ch:122px;--glass:rgba(6,4,16,0.97)
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+    color:#fff;font-family:'Cormorant Garamond',serif;user-select:none}
+
+/* 星空 */
+#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ══ 儀式畫面 ══ */
+#ritual{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:28px;
+    background:radial-gradient(ellipse at 50% 55%,#150e28 0%,#04030a 68%)}
+.r-title{font-family:'Cinzel',serif;font-size:1rem;letter-spacing:9px;
+    color:var(--gold);text-transform:uppercase;
+    opacity:0;animation:fup 1s 0.2s forwards}
+#intent-wrap{width:86%;max-width:310px;
+    opacity:0;animation:fup 1s 0.5s forwards}
+#intent-input{width:100%;background:none;border:none;
+    border-bottom:1px solid rgba(197,160,89,0.22);color:var(--gold2);
+    text-align:center;padding:12px 6px;font-size:0.95rem;
+    font-family:'Cormorant Garamond',serif;letter-spacing:2px;
+    outline:none;user-select:text;touch-action:auto}
+#intent-input::placeholder{color:rgba(197,160,89,0.2);font-size:0.7rem;letter-spacing:3px}
+#intent-input:focus{border-bottom-color:var(--gold)}
+#chips{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:16px}
+.chip{padding:5px 13px;border-radius:18px;border:1px solid rgba(197,160,89,0.22);
+    font-size:0.62rem;color:var(--gold2);background:rgba(197,160,89,0.04);
+    cursor:pointer;letter-spacing:1px;touch-action:manipulation;transition:all 0.25s}
+.chip:active{background:rgba(197,160,89,0.18);transform:scale(0.92)}
+
+/* Orb */
+.orb-outer{position:relative;width:82px;height:82px;display:flex;align-items:center;
+    justify-content:center;cursor:pointer;touch-action:none;
+    opacity:0;animation:fup 1s 0.8s forwards}
+.orb-ring{position:absolute;inset:0;border-radius:50%;
+    border:1px solid rgba(197,160,89,0.28);pointer-events:none;transition:all 0.4s}
+.orb-glow{position:absolute;inset:0;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(197,160,89,0.06) 0%,transparent 70%)}
+.orb-ball{width:50px;height:50px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle at 33% 30%,#fff9e8,var(--gold) 50%,#2a1400 100%);
+    box-shadow:0 0 18px rgba(197,160,89,0.6),0 0 50px rgba(197,160,89,0.12)}
+/* SVG 進度環 */
+.orb-svg{position:absolute;inset:-4px;pointer-events:none}
+.orb-track{fill:none;stroke:rgba(197,160,89,0.12);stroke-width:1.5}
+.orb-arc{fill:none;stroke:var(--gold2);stroke-width:1.5;stroke-linecap:round;
+    stroke-dasharray:0 220;transition:stroke-dasharray 0.05s linear}
+.orb-hint{font-size:0.48rem;color:rgba(197,160,89,0.28);letter-spacing:4px;text-transform:uppercase}
+
+@keyframes fup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* ══ 主場景 ══ */
+#scene{position:fixed;inset:0;z-index:10;display:none;overflow:hidden}
+
+/* 頂部標題 */
+#hdr{position:absolute;top:24px;left:0;right:0;text-align:center;
+    font-family:'Cinzel',serif;font-size:0.58rem;letter-spacing:9px;
+    color:rgba(197,160,89,0.35);text-transform:uppercase;z-index:20;pointer-events:none}
+
+/* 槽位（上方） */
+#slots{position:absolute;top:52px;left:0;right:0;height:150px;
+    display:flex;justify-content:center;align-items:center;gap:12px;
+    z-index:30;pointer-events:none}
+.slot{width:var(--cw);height:var(--ch);border-radius:9px;
+    border:1px dashed rgba(197,160,89,0.1);display:flex;flex-direction:column;
+    align-items:center;justify-content:flex-end;padding-bottom:7px;
+    transition:border-color 0.4s,background 0.4s,box-shadow 0.4s}
+.slot.ready{border-color:rgba(197,160,89,0.5);background:rgba(197,160,89,0.05);
+    box-shadow:0 0 20px rgba(197,160,89,0.1) inset}
+.slot-lbl{font-size:0.38rem;letter-spacing:3px;color:rgba(197,160,89,0.2);text-transform:uppercase}
+
+/* 拖放目標光圈（提示放手） */
+#drop-hint{position:absolute;top:52px;left:0;right:0;height:150px;
+    display:flex;justify-content:center;align-items:center;gap:12px;
+    z-index:25;pointer-events:none;opacity:0;transition:opacity 0.3s}
+.drop-ring{width:var(--cw);height:var(--ch);border-radius:9px;
+    border:1.5px solid rgba(197,160,89,0.6);
+    box-shadow:0 0 24px rgba(197,160,89,0.2),0 0 60px rgba(197,160,89,0.08) inset;
+    animation:dropPulse 1.2s infinite}
+@keyframes dropPulse{0%,100%{opacity:0.5}50%{opacity:1}}
+
+/* 計數 */
+#pick-count{position:absolute;top:220px;left:50%;transform:translateX(-50%);
+    font-family:'Cinzel',serif;font-size:0.5rem;letter-spacing:5px;
+    color:rgba(197,160,89,0.3);text-transform:uppercase;z-index:20;pointer-events:none}
+
+/* 牌桌（下半部可撥動） */
+#fan-wrap{position:absolute;bottom:0;left:0;right:0;height:58%;z-index:20;
+    display:flex;align-items:center;justify-content:center;overflow:hidden}
+#fan{position:relative;width:100%;height:100%;touch-action:none}
+
+/* 撥動提示 */
+#swipe-lbl{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+    font-size:0.5rem;letter-spacing:5px;color:rgba(197,160,89,0.25);
+    text-transform:uppercase;z-index:5;pointer-events:none;
+    animation:blink 2.5s infinite}
+@keyframes blink{0%,100%{opacity:0.3}50%{opacity:0.8}}
+
+/* ── 牌片 ── */
+.card{position:absolute;width:var(--cw);height:var(--ch);
+    transform-style:preserve-3d;cursor:grab;will-change:transform}
+.card.dragging{cursor:grabbing;z-index:999!important}
+.c-back,.c-front{position:absolute;inset:0;border-radius:8px;backface-visibility:hidden}
+.c-back{background:#07050f;border:1px solid rgba(197,160,89,0.55);
+    display:flex;align-items:center;justify-content:center}
+.c-back svg{width:60%;height:60%;opacity:0.35}
+.c-front{background:#000;transform:rotateY(180deg);overflow:hidden;
+    border:1.5px solid var(--gold)}
+.c-front img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.5s}
+.c-front img.ok{opacity:1}
+.card.captured{position:fixed!important;z-index:400!important;cursor:pointer;touch-action:manipulation}
+
+/* 拖曳光暈 */
+.drag-glow{position:fixed;width:100px;height:160px;border-radius:12px;pointer-events:none;z-index:998;
+    background:radial-gradient(ellipse,rgba(197,160,89,0.18) 0%,transparent 70%);
+    transform:translate(-50%,-50%);opacity:0;transition:opacity 0.2s}
+
+/* 粒子 */
+.pt{position:fixed;width:3px;height:3px;border-radius:50%;pointer-events:none;z-index:997;background:var(--gold2)}
+
+/* 重啟 */
+#restart{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+    background:none;border:1px solid rgba(197,160,89,0.2);color:var(--gold);
+    padding:7px 22px;border-radius:18px;font-size:0.6rem;letter-spacing:3px;
+    font-family:'Cinzel',serif;opacity:0;pointer-events:none;z-index:600;touch-action:manipulation}
+
+/* ══ 詳情面板 ══ */
+#panel{position:fixed;width:91%;max-width:340px;max-height:72vh;
+    background:var(--glass);backdrop-filter:blur(50px);
+    border:1px solid rgba(197,160,89,0.3);border-radius:26px;
+    padding:28px 12px 22px 22px;z-index:600;opacity:0;pointer-events:none;
+    left:50%;transform:translateX(-50%) translateY(24px);top:8%;
+    display:flex;flex-direction:column;
+    box-shadow:0 40px 100px rgba(0,0,0,0.9);
+    transition:opacity 0.45s,transform 0.55s cubic-bezier(0.19,1,0.22,1);
+    touch-action:auto}
+#panel.on{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+#pscroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+    touch-action:pan-y;padding-right:14px;margin-bottom:14px}
+#pscroll::-webkit-scrollbar{width:2px}
+#pscroll::-webkit-scrollbar-thumb{background:var(--gold);border-radius:4px}
+.p-lbl{font-size:0.48rem;color:var(--gold);letter-spacing:6px;margin-bottom:10px;
+    opacity:0.55;text-transform:uppercase;text-align:center;font-family:'Cinzel',serif}
+.p-name{font-size:1.5rem;font-weight:300;color:#fff;margin-bottom:6px;
+    letter-spacing:2px;text-align:center}
+.p-ori{font-size:0.6rem;margin-bottom:22px;font-weight:600;text-align:center;
+    font-family:'Cinzel',serif;letter-spacing:2px}
+#p-body{font-size:0.92rem;line-height:2.1;color:#ccc;text-align:justify;
+    padding-bottom:18px;user-select:text;white-space:pre-wrap}
+.p-btn{background:rgba(197,160,89,0.14);border:1px solid var(--gold);
+    color:var(--gold2);padding:13px 0;border-radius:24px;font-size:0.7rem;
+    letter-spacing:3px;cursor:pointer;width:calc(100% - 14px);flex-shrink:0;
+    font-family:'Cinzel',serif;touch-action:manipulation}
+.glow-btn{animation:gBtn 2.5s infinite;background:rgba(197,160,89,0.22)}
+@keyframes gBtn{0%,100%{box-shadow:0 0 4px var(--gold)}50%{box-shadow:0 0 18px var(--gold2)}}
+
+/* ══ 手勢偵測 UI ══ */
+#gesture-btn{position:fixed;top:16px;right:16px;z-index:700;
+    width:44px;height:44px;border-radius:50%;border:1px solid rgba(197,160,89,0.3);
+    background:rgba(6,4,16,0.85);display:none;align-items:center;justify-content:center;
+    cursor:pointer;touch-action:manipulation;transition:border-color 0.3s}
+#gesture-btn.active{border-color:rgba(197,160,89,0.8);
+    box-shadow:0 0 12px rgba(197,160,89,0.4)}
+#gesture-btn svg{width:22px;height:22px;opacity:0.6;transition:opacity 0.3s}
+#gesture-btn.active svg{opacity:1}
+
+/* 狀態標籤 */
+#gesture-status{position:fixed;top:16px;right:68px;z-index:700;
+    font-family:'Cinzel',serif;font-size:0.42rem;letter-spacing:3px;
+    color:rgba(197,160,89,0.5);display:none;align-items:center;
+    background:rgba(6,4,16,0.7);padding:6px 12px;border-radius:12px;
+    border:1px solid rgba(197,160,89,0.12);white-space:nowrap}
+#gesture-status.show{display:flex}
+
+/* 張手提示光效 */
+#open-hand-flash{position:fixed;inset:0;z-index:690;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 80%,rgba(197,160,89,0.18) 0%,transparent 60%);
+    opacity:0;transition:opacity 0.15s}
+#open-hand-flash.on{opacity:1}
+
+/* 隱藏的 video 給 MediaPipe 用 */
+#mp-video{position:fixed;top:-9999px;left:-9999px;width:1px;height:1px}
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<!-- 儀式畫面 -->
+<div id="ritual">
+    <div class="r-title">Celestial Oracle</div>
+    <div id="intent-wrap">
+        <input type="text" id="intent-input" placeholder="輸入您的問題或困惑..." maxlength="50">
+        <div id="chips">
+            <div class="chip" onclick="setQ('請解析我近期的感情運勢與發展。')">感情</div>
+            <div class="chip" onclick="setQ('關於目前的事業方向，請給予指引。')">事業</div>
+            <div class="chip" onclick="setQ('未來的財富狀況與具體獲利機會？')">財富</div>
+            <div class="chip" onclick="setQ('如何具體優化目前的生活狀態？')">提升</div>
+        </div>
+    </div>
+    <div class="orb-outer" id="orb">
+        <svg class="orb-svg" viewBox="0 0 90 90">
+            <circle class="orb-track" cx="45" cy="45" r="42"/>
+            <circle class="orb-arc" id="orb-arc" cx="45" cy="45" r="42"
+                transform="rotate(-90 45 45)"/>
+        </svg>
+        <div class="orb-ring"></div>
+        <div class="orb-glow"></div>
+        <div class="orb-ball"></div>
+    </div>
+    <div class="orb-hint">長按啟動占卜</div>
+</div>
+
+<!-- 主場景 -->
+<div id="scene">
+    <div id="hdr">Celestial Oracle · Draw Three</div>
+    <div id="slots">
+        <div class="slot" id="slot-0"><div class="slot-lbl">Past</div></div>
+        <div class="slot" id="slot-1"><div class="slot-lbl">Present</div></div>
+        <div class="slot" id="slot-2"><div class="slot-lbl">Future</div></div>
+    </div>
+    <div id="drop-hint">
+        <div class="drop-ring"></div>
+        <div class="drop-ring"></div>
+        <div class="drop-ring"></div>
+    </div>
+    <div id="pick-count">選取 0 / 3</div>
+    <div id="fan-wrap"><div id="fan"></div></div>
+    <div id="swipe-lbl">← 滑動牌堆 · 上拖抽牌 →</div>
+</div>
+
+<div id="panel">
+    <div id="pscroll">
+        <div class="p-lbl" id="p-lbl">POSITION</div>
+        <div class="p-name" id="p-name">—</div>
+        <div class="p-ori" id="p-ori">UPRIGHT</div>
+        <div id="p-body">讀取中...</div>
+    </div>
+    <button class="p-btn" id="p-btn">下一步</button>
+</div>
+<button id="restart" onclick="location.reload()">重新占卜</button>
+
+<div class="drag-glow" id="drag-glow"></div>
+
+<!-- 手勢偵測 -->
+<video id="mp-video" playsinline></video>
+<button id="gesture-btn" title="手勢抽牌">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#c5a059" stroke-width="1.5">
+        <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v1M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/>
+        <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34L3 16"/>
+    </svg>
+</button>
+<div id="gesture-status">偵測中...</div>
+<div id="open-hand-flash"></div>
+
+<script>
+// ══ 星空 ══
+(()=>{
+    const c=document.getElementById('stars'),ctx=c.getContext('2d');
+    c.width=window.innerWidth;c.height=window.innerHeight;
+    const stars=Array.from({length:180},()=>({
+        x:Math.random()*c.width,y:Math.random()*c.height,
+        r:Math.random()*1.2,a:Math.random(),sp:0.002+Math.random()*0.003}));
+    function draw(){
+        ctx.clearRect(0,0,c.width,c.height);
+        stars.forEach(s=>{
+            s.a+=s.sp;if(s.a>1)s.sp*=-1;if(s.a<0)s.sp*=-1;
+            ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+            ctx.fillStyle=`rgba(255,248,220,${s.a*0.7})`;ctx.fill();
+        });requestAnimationFrame(draw);}
+    draw();
+})();
+
+// ══ 資料 ══
+const imgBase="https://www.trustedtarot.com/img/cards/";
+const mSlugs=["the-fool","the-magician","the-high-priestess","the-empress","the-emperor",
+    "the-hierophant","the-lovers","the-chariot","strength","the-hermit","wheel-of-fortune",
+    "justice","the-hanged-man","death","temperance","the-devil","the-tower","the-star",
+    "the-moon","the-sun","judgement","the-world"];
+const mNames=["愚者","魔術師","女教皇","女皇","皇帝","教皇","戀人","戰車","力量","隱士",
+    "命運之輪","正義","倒吊人","死神","節制","惡魔","高塔","星星","月亮","太陽","審判","世界"];
+let cardData=[];
+mNames.forEach((n,i)=>cardData.push({name:n,img:`${imgBase}${mSlugs[i]}.png`}));
+["wands","cups","swords","pentacles"].forEach((s,si)=>{
+    ["ace","two","three","four","five","six","seven","eight","nine","ten","page","knight","queen","king"]
+    .forEach((r,ri)=>cardData.push({name:["權杖","聖杯","寶劍","錢幣"][si]+["一","二","三","四","五","六","七","八","九","十","侍從","騎士","皇后","國王"][ri],img:`${imgBase}${r}-of-${s}.png`}));
+});
+
+// ══ 狀態 ══
+const API_URL="/api/gemini";
+let userIntent="",pickedCount=0,pickedSeq=[],nextReveal=0;
+let fanOffset=0,fanVelocity=0,isDraggingFan=false;
+let dragCard=null,dragStartX=0,dragStartY=0,dragCurX=0,dragCurY=0;
+let deckObjs=[];
+const CW=72,CH=122,SPACING=38;
+
+function haptic(p){window.navigator?.vibrate?.(p)}
+
+// ══ 輸入 / Orb ══
+const intentInput=document.getElementById('intent-input');
+const orb=document.getElementById('orb');
+const orbArc=document.getElementById('orb-arc');
+const CIRCUM=2*Math.PI*42;
+orbArc.style.strokeDasharray=`0 ${CIRCUM}`;
+intentInput.addEventListener('input',()=>{
+    orb.style.opacity=intentInput.value.trim()?'1':'0.4';
+    orb.style.pointerEvents=intentInput.value.trim()?'auto':'none';
+});
+orb.style.opacity='0.4';orb.style.pointerEvents='none';
+
+function setQ(t){intentInput.value=t;intentInput.blur();
+    orb.style.opacity='1';orb.style.pointerEvents='auto';haptic(15)}
+
+let holdTimer=null;
+orb.addEventListener('touchstart',e=>{
+    e.preventDefault();e.stopPropagation();
+    intentInput.blur();userIntent=intentInput.value.trim();
+    gsap.to(orb,{scale:1.25,duration:1.2,ease:"power2.in"});
+    gsap.to('.orb-ball',{boxShadow:'0 0 35px rgba(197,160,89,0.9)',duration:1.2});
+    let t=0;
+    holdTimer=setInterval(()=>{
+        t+=50;const p=Math.min(t/1200,1);
+        orbArc.style.strokeDasharray=`${p*CIRCUM} ${CIRCUM}`;
+        if(p>=1){clearInterval(holdTimer);holdTimer=null;haptic(80);startScene();}
+    },50);
+},{passive:false});
+orb.addEventListener('touchend',e=>{
+    e.stopPropagation();
+    if(holdTimer){clearInterval(holdTimer);holdTimer=null;
+        orbArc.style.strokeDasharray=`0 ${CIRCUM}`;
+        gsap.to(orb,{scale:1,duration:0.35});
+        gsap.to('.orb-ball',{boxShadow:'0 0 18px rgba(197,160,89,0.6)',duration:0.35});}
+},{passive:true});
+
+// ══ 啟動場景 ══
+function startScene(){
+    gsap.to('#ritual',{opacity:0,duration:0.7,onComplete:()=>{
+        document.getElementById('ritual').style.display='none';
+        document.getElementById('scene').style.display='block';
+        buildFan();
+    }});
+}
+
+// ══ 建立扇形牌堆 ══
+function buildFan(){
+    const fan=document.getElementById('fan');
+    const N=78,cx=window.innerWidth/2,cy=window.innerHeight*0.3;
+    // 洗牌
+    const shuffled=[...cardData].sort(()=>Math.random()-0.5);
+
+    for(let i=0;i<N;i++){
+        const el=document.createElement('div');
+        el.className='card';
+        const isRev=Math.random()>0.72;
+        el.innerHTML=`<div class="c-back"><svg viewBox="0 0 100 100" fill="none" stroke="#c5a059" stroke-width="0.8"><circle cx="50" cy="50" r="44"/><path d="M50 6L50 94M6 50L94 50"/><polygon points="50,26 66,50 50,74 34,50"/></svg></div><div class="c-front"><img src="${shuffled[i].img}" onload="this.classList.add('ok')"></div>`;
+
+        // 扇形排列：以底部圓心為基準
+        const angle=((i-(N-1)/2)*SPACING/400)*0.8; // 弧度
+        const radius=window.innerHeight*0.62;
+        const baseX=cx+Math.sin(angle)*radius-CW/2;
+        const baseY=window.innerHeight-radius*Math.cos(angle)+radius*0.05;
+
+        el.style.left=baseX+'px';
+        el.style.top=baseY+'px';
+        el.style.zIndex=i;
+        el.style.transform=`rotate(${angle*57.3}deg)`;
+        if(isRev)el.querySelector('.c-front img').style.transform='rotate(180deg)';
+
+        fan.appendChild(el);
+        const obj={el,data:shuffled[i],isRev,isPicked:false,
+            baseX,baseY,angle,idx:i};
+        deckObjs.push(obj);
+
+        gsap.from(el,{y:80,opacity:0,duration:0.6,delay:i*0.004,ease:"power2.out"});
+    }
+
+    initFanTouch();
+    updateDropHint(false);
+}
+
+// ══ 扇形觸控：撥動 + 上拖抽牌 ══
+function initFanTouch(){
+    const fan=document.getElementById('fan');
+    const glow=document.getElementById('drag-glow');
+    let panStart=0,panX=0,lastPanX=0,panVel=0;
+    let rafId=null;
+
+    // ── 判斷觸碰到哪張牌 ──
+    function hitCard(tx,ty){
+        // 從最上層往下找
+        for(let i=deckObjs.length-1;i>=0;i--){
+            const o=deckObjs[i];
+            if(o.isPicked)continue;
+            const r=o.el.getBoundingClientRect();
+            if(tx>=r.left&&tx<=r.right&&ty>=r.top&&ty<=r.bottom)return o;
+        }
+        return null;
+    }
+
+    let touchId=null;
+    fan.addEventListener('touchstart',e=>{
+        if(pickedCount>=3)return;
+        const t=e.changedTouches[0];
+        touchId=t.identifier;
+        const hit=hitCard(t.clientX,t.clientY);
+        if(hit){
+            // 開始拖牌
+            dragCard=hit;
+            dragStartX=t.clientX;dragStartY=t.clientY;
+            dragCurX=t.clientX;dragCurY=t.clientY;
+            dragCard.el.classList.add('dragging');
+            gsap.killTweensOf(dragCard.el);
+            gsap.to(dragCard.el,{scale:1.12,duration:0.2});
+            glow.style.opacity='1';
+            updateDropHint(true);
+        } else {
+            // 撥動牌堆
+            dragCard=null;
+            panStart=t.clientX;lastPanX=t.clientX;panVel=0;
+            isDraggingFan=true;
+        }
+    },{passive:true});
+
+    fan.addEventListener('touchmove',e=>{
+        const t=[...e.changedTouches].find(x=>x.identifier===touchId);
+        if(!t)return;
+        if(dragCard){
+            // 拖牌跟手指
+            dragCurX=t.clientX;dragCurY=t.clientY;
+            const dx=dragCurX-dragStartX,dy=dragCurY-dragStartY;
+            gsap.set(dragCard.el,{
+                x:dx,y:dy,
+                rotate:dragCard.angle*57.3+dx*0.05,
+                zIndex:999
+            });
+            glow.style.left=dragCurX+'px';
+            glow.style.top=dragCurY+'px';
+            // 拖到上半部顯示光圈
+            updateDropHint(dragCurY < window.innerHeight*0.48);
+        } else if(isDraggingFan){
+            const dx=t.clientX-lastPanX;
+            panVel=dx;lastPanX=t.clientX;
+            shiftFan(dx);
+        }
+    },{passive:true});
+
+    fan.addEventListener('touchend',e=>{
+        const t=[...e.changedTouches].find(x=>x.identifier===touchId);
+        if(!t)return;
+        glow.style.opacity='0';
+        updateDropHint(false);
+        if(dragCard){
+            const dy=dragCurY-dragStartY;
+            const inDropZone=dragCurY<window.innerHeight*0.48;
+            if(inDropZone&&dy<-60){
+                captureCard(dragCard);
+            } else {
+                // 放回原位
+                gsap.to(dragCard.el,{x:0,y:0,scale:1,
+                    rotate:dragCard.angle*57.3,duration:0.5,ease:"back.out(1.5)"});
+            }
+            dragCard.el.classList.remove('dragging');
+            dragCard=null;
+        } else if(isDraggingFan){
+            isDraggingFan=false;
+            // 慣性
+            let vel=panVel;
+            function inertia(){
+                if(Math.abs(vel)<0.5)return;
+                vel*=0.92;shiftFan(vel);
+                rafId=requestAnimationFrame(inertia);
+            }
+            cancelAnimationFrame(rafId);inertia();
+        }
+    },{passive:true});
+}
+
+// ── 撥動整個扇形 ──
+function shiftFan(dx){
+    fanOffset+=dx;
+    deckObjs.forEach(o=>{
+        if(o.isPicked)return;
+        const newX=o.baseX+fanOffset;
+        gsap.set(o.el,{x:fanOffset});
+    });
+}
+
+// ── 顯示/隱藏放牌區光圈 ──
+function updateDropHint(show){
+    const dh=document.getElementById('drop-hint');
+    // 只顯示下一個空槽的光圈
+    dh.querySelectorAll('.drop-ring').forEach((r,i)=>{
+        r.style.opacity=show&&i===pickedCount?'1':'0';
+    });
+    dh.style.opacity=show?'1':'0';
+}
+
+// ══ 抓牌動畫 ══
+function captureCard(obj){
+    if(obj.isPicked||pickedCount>=3)return;
+    obj.isPicked=true;haptic(40);
+    pickedCount++;
+    document.getElementById('pick-count').innerText=`選取 ${pickedCount} / 3`;
+
+    const slot=document.getElementById(`slot-${pickedCount-1}`);
+    const sr=slot.getBoundingClientRect();
+    const or=obj.el.getBoundingClientRect();
+
+    // 建立 clone 飛向槽位
+    const clone=obj.el.cloneNode(true);
+    clone.className='card captured';
+    clone.style.cssText=`left:${or.left}px;top:${or.top}px;width:${CW}px;height:${CH}px;
+        transform:none;z-index:450;pointer-events:auto`;
+    document.body.appendChild(clone);
+    if(obj.isRev)clone.querySelector('.c-front img').style.transform='rotate(180deg)';
+
+    // 原牌淡出
+    gsap.to(obj.el,{opacity:0,scale:0.8,duration:0.4});
+    obj.el.style.pointerEvents='none';
+
+    const info={el:clone,data:obj.data,isRev:obj.isRev,isRevealed:false,pIndex:pickedCount-1};
+    pickedSeq.push(info);
+
+    // 粒子
+    for(let i=0;i<12;i++) spawnParticle(or.left+CW/2,or.top+CH/2);
+
+    // 飛到槽位
+    gsap.timeline()
+        .to(clone,{scale:1.3,y:-30,duration:0.3,ease:"power2.out"})
+        .to(clone,{
+            left:sr.left,top:sr.top,scale:1,y:0,
+            duration:0.9,ease:"expo.inOut",
+            onUpdate:()=>spawnParticle(
+                parseFloat(clone.style.left)+CW/2,
+                parseFloat(clone.style.top)+CH/2,0.3),
+            onComplete:()=>{
+                slot.classList.add('ready');
+                clone.addEventListener('click',()=>revealCard(info));
+                if(pickedCount===3){
+                    document.getElementById('swipe-lbl').style.display='none';
+                    gsap.to('#restart',{opacity:1,pointerEvents:'auto',delay:0.8});
+                    // 暗化剩餘牌
+                    deckObjs.forEach(o=>{if(!o.isPicked)gsap.to(o.el,{opacity:0.07,duration:1.2})});
+                }
+            }
+        });
+}
+
+function spawnParticle(x,y,chance=1){
+    if(Math.random()>chance)return;
+    const p=document.createElement('div');p.className='pt';
+    document.body.appendChild(p);
+    gsap.set(p,{left:x,top:y,opacity:0.8,scale:1});
+    gsap.to(p,{x:(Math.random()-0.5)*60,y:(Math.random()-0.5)*60,
+        opacity:0,scale:0,duration:0.7,ease:"power2.out",onComplete:()=>p.remove()});
+}
+
+// ══ 翻牌 ══
+function revealCard(obj){
+    if(!obj.isRevealed){
+        obj.isRevealed=true;
+        nextReveal=Math.max(nextReveal,obj.pIndex+1);
+        haptic([15,50]);
+        gsap.to(obj.el.querySelector('.c-back'),{rotationY:90,duration:0.3,onComplete:()=>{
+            obj.el.querySelector('.c-back').style.display='none';
+            obj.el.querySelector('.c-front').style.transform='none';
+            gsap.from(obj.el.querySelector('.c-front'),{rotationY:-90,duration:0.4,ease:"back.out(1.2)",
+                onComplete:()=>showPanel(obj)});
+        }});
+    } else {
+        document.getElementById('panel').classList.remove('on');
+        setTimeout(()=>showPanel(obj),100);
+    }
+}
+
+// ══ 詳情面板 ══
+const pscroll=document.getElementById('pscroll');
+pscroll.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+pscroll.addEventListener('touchmove',e=>e.stopPropagation(),{passive:true});
+
+function showPanel(obj){
+    document.getElementById('p-lbl').innerText=["過去：基礎與因果","現在：目前狀態","未來：走向顯化"][obj.pIndex];
+    document.getElementById('p-name').innerText=obj.data.name;
+    const ori=document.getElementById('p-ori');
+    ori.innerText=obj.isRev?"逆位 REVERSED":"正位 UPRIGHT";
+    ori.style.color=obj.isRev?"#ff6b6b":"#f0d080";
+    document.getElementById('p-body').innerText=`這張牌展現了深刻的能量共振。${obj.isRev?'逆位暗示著能量正處於內省、阻滯或需要重新審視的階段。':'正位代表能量正順暢流動，展現出穩定、積極且向外顯化的趨勢。'}`;
+    pscroll.scrollTop=0;
+
+    const btn=document.getElementById('p-btn');
+    btn.classList.remove('glow-btn');btn.onclick=null;
+    if(nextReveal<3){
+        const nxt=pickedSeq[nextReveal];
+        if(nxt){btn.innerText="讀取下一步";btn.onclick=()=>{document.getElementById('panel').classList.remove('on');setTimeout(()=>revealCard(nxt),300)};}
+        else{btn.innerText="繼續選取剩餘的牌";btn.onclick=()=>document.getElementById('panel').classList.remove('on');}
+    } else {
+        btn.innerText="獲得大師深度解讀";btn.classList.add('glow-btn');
+        btn.onclick=()=>callAI();
+    }
+    setTimeout(()=>document.getElementById('panel').classList.add('on'),40);
+}
+
+document.addEventListener('click',e=>{
+    const panel=document.getElementById('panel');
+    if(!panel.classList.contains('on'))return;
+    if(e.target.closest('#panel'))return;
+    if(e.target.closest('.card'))return;
+    panel.classList.remove('on');
+});
+
+// ══ AI ══
+async function callAI(){
+    const body=document.getElementById('p-body'),btn=document.getElementById('p-btn');
+    btn.disabled=true;pscroll.scrollTop=0;
+    body.innerText=`正在為您審視「${userIntent}」的全局脈絡...\n\n請稍候片刻。`;
+    const cs=pickedSeq.map(o=>`${["過去","現在","未來"][o.pIndex]}:${o.data.name}(${o.isRev?'逆位':'正位'})`).join('、');
+    const payload={
+        contents:[{parts:[{text:`尋求者的問題：『${userIntent}』\n牌陣：${cs}\n\n請以資深塔羅顧問身份，莊重、專業地回覆，字數約500字。\n架構：\n1.過去[牌名]—解析根源\n2.現在[牌名]—現實瓶頸\n3.未來[牌名]—走向指引\n4.整合建議`}]}],
+        systemInstruction:{parts:[{text:"您是具備深厚底蘊的塔羅大師，語言洗鍊、精準、客觀，以「您」稱呼求問者。"}]}
+    };
+    try{
+        const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+        const data=await res.json();
+        if(data.error){body.innerText="API錯誤："+JSON.stringify(data.error);}
+        else{
+            const txt=data.candidates?.[0]?.content?.parts?.[0]?.text||"啟示未能顯現。";
+            document.getElementById('p-name').innerText="大師諮詢";
+            body.innerText=txt;
+        }
+        btn.innerText="完成諮詢";btn.classList.remove('glow-btn');
+        btn.onclick=()=>document.getElementById('panel').classList.remove('on');
+        btn.disabled=false;
+    }catch(e){
+        body.innerText="連結受阻："+e.message;
+        btn.innerText="關閉";btn.disabled=false;
+        btn.onclick=()=>document.getElementById('panel').classList.remove('on');
+    }
+}
+
+// ══ 手勢偵測（MediaPipe Hands）══════════════════════════
+let gestureEnabled = false;
+let handsModel = null;
+let mpCamera = null;
+let lastOpenTime = 0;
+const OPEN_COOLDOWN = 2000; // 兩次張手之間最短間隔 ms
+
+// 判斷是否為「張開手」：五指都伸直
+function isOpenHand(landmarks) {
+    // landmarks: 21個點，每個 {x,y,z}
+    // 指尖索引：拇指4, 食指8, 中指12, 無名指16, 小指20
+    // 指根（MCP）索引：拇指2, 食指5, 中指9, 無名指13, 小指17
+    const tips  = [4,  8,  12, 16, 20];
+    const mcps  = [2,  5,   9, 13, 17];
+    let extended = 0;
+    for (let i = 0; i < 5; i++) {
+        const tip = landmarks[tips[i]];
+        const mcp = landmarks[mcps[i]];
+        // y 軸：MediaPipe 以左上為原點，y 越小越高
+        // 指尖比指根更靠近畫面頂部（y 更小）= 伸直
+        if (i === 0) {
+            // 拇指用 x 軸判斷（左右方向）
+            extended += Math.abs(tip.x - mcp.x) > 0.08 ? 1 : 0;
+        } else {
+            extended += tip.y < mcp.y - 0.04 ? 1 : 0;
+        }
+    }
+    return extended >= 4; // 至少4指伸直才算張開
+}
+
+function triggerGestureCapture() {
+    if (pickedCount >= 3) return;
+    const now = Date.now();
+    if (now - lastOpenTime < OPEN_COOLDOWN) return;
+    lastOpenTime = now;
+
+    // 找最上層未被抽走的牌
+    const available = deckObjs.filter(o => !o.isPicked);
+    if (!available.length) return;
+
+    // 抽中間那張（最接近畫面中央）
+    const cx = window.innerWidth / 2;
+    available.sort((a, b) => {
+        const ra = a.el.getBoundingClientRect();
+        const rb = b.el.getBoundingClientRect();
+        return Math.abs(ra.left + ra.width/2 - cx) - Math.abs(rb.left + rb.width/2 - cx);
+    });
+    const target = available[0];
+
+    // 張手閃光效果
+    const flash = document.getElementById('open-hand-flash');
+    flash.classList.add('on');
+    setTimeout(() => flash.classList.remove('on'), 300);
+    haptic([30, 50, 30]);
+
+    captureCard(target);
+    document.getElementById('gesture-status').innerText = `✦ 張手抽牌！(${pickedCount}/3)`;
+    setTimeout(() => {
+        document.getElementById('gesture-status').innerText = '張開手抽牌';
+    }, 1500);
+}
+
+async function initGesture() {
+    const btn = document.getElementById('gesture-btn');
+    const status = document.getElementById('gesture-status');
+
+    if (gestureEnabled) {
+        // 關閉
+        gestureEnabled = false;
+        if (mpCamera) { mpCamera.stop(); mpCamera = null; }
+        btn.classList.remove('active');
+        status.classList.remove('show');
+        return;
+    }
+
+    // 請求鏡頭權限
+    status.innerText = '請求鏡頭...';
+    status.classList.add('show');
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: 320, height: 240 }
+        });
+        const video = document.getElementById('mp-video');
+        video.srcObject = stream;
+        await video.play();
+
+        // 初始化 MediaPipe Hands
+        handsModel = new Hands({
+            locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+        });
+        handsModel.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 0,       // 0 = 最輕量
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.6
+        });
+        handsModel.onResults(results => {
+            if (!results.multiHandLandmarks || !results.multiHandLandmarks.length) return;
+            const landmarks = results.multiHandLandmarks[0];
+            if (isOpenHand(landmarks)) {
+                triggerGestureCapture();
+            }
+        });
+
+        // MediaPipe Camera
+        mpCamera = new Camera(video, {
+            onFrame: async () => {
+                if (handsModel) await handsModel.send({ image: video });
+            },
+            width: 320, height: 240
+        });
+        mpCamera.start();
+
+        gestureEnabled = true;
+        btn.classList.add('active');
+        status.innerText = '張開手抽牌';
+
+    } catch (err) {
+        status.innerText = err.name === 'NotAllowedError' ? '需要鏡頭權限' : '鏡頭不支援';
+        setTimeout(() => status.classList.remove('show'), 2500);
+    }
+}
+
+// 按鈕綁定
+document.getElementById('gesture-btn').addEventListener('click', initGesture);
+
+// 進入主場景時顯示按鈕
+const _origStartScene = startScene;
+startScene = function() {
+    _origStartScene();
+    setTimeout(() => {
+        document.getElementById('gesture-btn').style.display = 'flex';
+    }, 800);
+};
+
+</script>
+</body>
+</html>
